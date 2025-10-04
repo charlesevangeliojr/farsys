@@ -71,17 +71,75 @@ export default function LoginScreen() {
       return;
     }
 
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      Alert.alert('Error', 'Please enter a valid email address');
-      return;
-    }
-
     setIsLoading(true);
 
     try {
       const emailLowerCase = email.trim().toLowerCase();
+
+      // Check admin_accounts first (for all email formats)
+      console.log('Checking admin_accounts with email:', emailLowerCase);
+      const adminsRef = collection(db, 'admin_accounts');
+      
+      // Try to get all admin documents first to see what's available
+      const allAdminsSnapshot = await getDocs(adminsRef);
+      console.log('Total admin documents:', allAdminsSnapshot.docs.length);
+      
+      if (!allAdminsSnapshot.empty) {
+        allAdminsSnapshot.docs.forEach((doc, index) => {
+          console.log(`Admin ${index + 1}:`, doc.data());
+        });
+        
+        // Find admin by email
+        const adminDoc = allAdminsSnapshot.docs.find(doc => {
+          const data = doc.data();
+          return data.email && data.email.toLowerCase().trim() === emailLowerCase;
+        });
+        
+        if (adminDoc) {
+          const adminData = adminDoc.data();
+          
+          console.log('Admin data found:', { 
+            email: adminData.email, 
+            hasPassword: !!adminData.password,
+            status: adminData.status,
+            firstname: adminData.firstname
+          });
+          console.log('Comparing passwords - DB:', adminData.password, 'Input:', password.trim());
+
+          // Check if password matches (trim both sides to handle any extra spaces)
+          if (adminData.password && adminData.password.trim() === password.trim()) {
+            // Check if admin is active
+            if (adminData.status === 'active') {
+              // Save user data to context
+              setUserData({
+                id: adminDoc.id,
+                ...adminData,
+                userType: 'admin'
+              });
+              
+              setIsLoading(false);
+              Alert.alert('Success', 'Welcome Admin!', [
+                {
+                  text: 'OK',
+                  onPress: () => {
+                    // Navigate to dashboard and clear login screen from history
+                    router.replace('/dashboard');
+                  }
+                }
+              ]);
+              return;
+            } else {
+              setIsLoading(false);
+              Alert.alert('Account Inactive', 'Your account is inactive. Please contact the system administrator.');
+              return;
+            }
+          } else {
+            setIsLoading(false);
+            Alert.alert('Error', 'Incorrect password. Please try again.');
+            return;
+          }
+        }
+      }
 
       // Check in students collection
       const studentsRef = collection(db, 'students');
@@ -173,7 +231,7 @@ export default function LoginScreen() {
         }
       }
 
-      // If no user found in either collection
+      // If no user found in any collection
       setIsLoading(false);
       Alert.alert('Error', 'No account found with this email address. Please sign up first.');
     } catch (error) {

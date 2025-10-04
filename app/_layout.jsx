@@ -23,6 +23,10 @@ function RootLayoutNav() {
         <Stack.Screen name="consultation_request" options={{ headerShown: false, title: '' }} />
         <Stack.Screen name="forgotpassword" options={{ headerShown: false, title: '' }} />
         <Stack.Screen name="verify_otp" options={{ headerShown: false, title: '' }} />
+        <Stack.Screen name="settings" options={{ headerShown: false, title: '' }} />
+        <Stack.Screen name="profile" options={{ headerShown: false, title: '' }} />
+        <Stack.Screen name="about" options={{ headerShown: false, title: '' }} />
+        <Stack.Screen name="developer" options={{ headerShown: false, title: '' }} />
       </Stack>
       <StatusBar style={isDark ? "light" : "dark"} />
     </ThemeProvider>

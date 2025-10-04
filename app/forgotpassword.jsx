@@ -6,15 +6,15 @@ import { StatusBar } from 'expo-status-bar';
 import { addDoc, collection, getDocs, query, serverTimestamp, where } from 'firebase/firestore';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    Image,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Image,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -86,14 +86,40 @@ export default function ForgotPasswordScreen() {
         console.error('Failed to save OTP to Firestore:', e);
       }
 
+      // Try to send email, but don't block if it fails
+      let emailSent = false;
       try {
         await emailService.sendOtpEmail(emailLowerCase, otp, 10);
+        emailSent = true;
       } catch (e) {
         console.warn('Email send failed (continuing):', e?.message || e);
       }
 
-      Alert.alert('OTP Sent', 'We have sent a 6-digit code to your email. The code expires in 10 minutes.');
-      router.push({ pathname: '/verify_otp', params: { email: emailLowerCase } });
+      // For development: Show OTP in alert if email service is not available
+      if (!emailSent) {
+        Alert.alert(
+          'OTP Code (Development Mode)', 
+          `Your OTP code is: ${otp}\n\nNote: Email service is not configured. This is for development/testing only.\n\nThe code expires in 10 minutes.`,
+          [
+            {
+              text: 'Copy Code',
+              onPress: () => {
+                // In production, you'd use Clipboard API here
+                Alert.alert('OTP Code', otp);
+              }
+            },
+            {
+              text: 'Continue',
+              onPress: () => {
+                router.push({ pathname: '/verify_otp', params: { email: emailLowerCase } });
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert('OTP Sent', 'We have sent a 6-digit code to your email. The code expires in 10 minutes.');
+        router.push({ pathname: '/verify_otp', params: { email: emailLowerCase } });
+      }
     } catch (error) {
       console.error('Send OTP error:', error);
       Alert.alert('Error', 'Failed to send OTP. Please try again.');

@@ -277,6 +277,8 @@ export default function DashboardScreen() {
       return user.first_name || 'Student';
     } else if (user.userType === 'teacher') {
       return user.firstname || 'Teacher';
+    } else if (user.userType === 'admin') {
+      return user.firstname || 'Admin';
     }
     
     return '';
@@ -297,62 +299,70 @@ export default function DashboardScreen() {
     });
   };
 
-  const menuOptions = [
+  const allMenuOptions = [
     {
       id: 1,
       title: 'Student Registration Request',
       icon: 'person-add-outline',
       color: '#4CAF50',
+      allowedUserTypes: ['admin', 'teacher'],
     },
     {
       id: 2,
       title: 'Teacher Account',
       icon: 'school-outline',
       color: '#2196F3',
+      allowedUserTypes: ['admin'],
     },
     {
       id: 3,
       title: 'School Year',
       icon: 'calendar-outline',
       color: '#FF9800',
+      allowedUserTypes: ['admin'],
     },
     {
       id: 4,
       title: 'Section',
       icon: 'people-outline',
       color: '#9C27B0',
+      allowedUserTypes: ['admin'],
     },
     {
       id: 5,
       title: 'Consultation Request',
       icon: 'chatbubbles-outline',
       color: '#E91E63',
-    },
-    {
-      id: 6,
-      title: 'Approved Consultations',
-      icon: 'checkmark-circle-outline',
-      color: '#00BCD4',
+      allowedUserTypes: ['admin', 'teacher'],
     },
     {
       id: 7,
       title: 'Settings',
       icon: 'settings-outline',
       color: '#795548',
+      allowedUserTypes: ['admin', 'teacher', 'student'],
     },
     {
       id: 8,
       title: 'Developer',
       icon: 'code-outline',
       color: '#607D8B',
+      allowedUserTypes: ['admin', 'teacher', 'student'],
     },
     {
       id: 9,
       title: 'Make Consultation',
       icon: 'chatbubble-ellipses-outline',
       color: '#4CAF50',
+      allowedUserTypes: ['student','admin'],
     },
   ];
+
+  // Filter menu options based on user type
+  const menuOptions = allMenuOptions.filter(option => {
+    if (!user || !user.userType) return false;
+    return option.allowedUserTypes.includes(user.userType);
+  });
 
   const handleMenuPress = (option) => {
     console.log(`Selected: ${option.title}`);
@@ -376,6 +386,12 @@ export default function DashboardScreen() {
         break;
       case 5: // Consultation Request
         router.push('/consultation_request');
+        break;
+      case 7: // Settings
+        router.push('/settings');
+        break;
+      case 8: // Developer
+        router.push('/developer');
         break;
       default:
         // For other options, just log for now
@@ -513,7 +529,7 @@ export default function DashboardScreen() {
           <View style={styles.headerTextContainer}>
             <View style={styles.headerRow}>
               <ThemedText style={styles.helloText}>
-                {user ? `Welcome ${user.userType === 'student' ? 'Student' : user.userType === 'teacher' ? 'Teacher' : 'User'} ${getUserName()}!` : ''}
+                {user ? `Welcome ${user.userType === 'student' ? 'Student' : user.userType === 'teacher' ? 'Teacher' : user.userType === 'admin' ? '' : 'User'} ${getUserName()}!` : ''}
               </ThemedText>
             </View>
             <View style={styles.clockContainer}>
