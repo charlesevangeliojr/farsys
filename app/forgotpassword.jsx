@@ -6,15 +6,15 @@ import { StatusBar } from 'expo-status-bar';
 import { addDoc, collection, getDocs, query, serverTimestamp, where } from 'firebase/firestore';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Dimensions,
-  Image,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    Dimensions,
+    Image,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -176,7 +176,7 @@ export default function ForgotPasswordScreen() {
 
           <View style={styles.sponsorContainer}>
             <View style={styles.sponsorLogos}>
-              <Image source={require('../assets/images/bayabas.png')} style={styles.sponsorLogo} />
+              <Image source={require('../assets/images/logo.png')} style={styles.sponsorLogo} />
             </View>
           </View>
         </ScrollView>

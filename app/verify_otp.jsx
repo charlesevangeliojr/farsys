@@ -186,7 +186,7 @@ export default function VerifyOtpScreen() {
 
           <View style={styles.sponsorContainer}>
             <View style={styles.sponsorLogos}>
-              <Image source={require('../assets/images/bayabas.png')} style={styles.sponsorLogo} />
+              <Image source={require('../assets/images/logo.png')} style={styles.sponsorLogo} />
             </View>
           </View>
         </ScrollView>

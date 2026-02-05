@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { addDoc, collection, doc, getDocs, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
 import React, { useState } from 'react';
 import { Alert, Dimensions, Image, Modal, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -35,6 +35,12 @@ export default function SectionScreen() {
   const [decliningConsultation, setDecliningConsultation] = useState(null);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState('pending');
+  const [showReplyModal, setShowReplyModal] = useState(false);
+  const [existingReplyText, setExistingReplyText] = useState('');
+  const [showReplyViewModal, setShowReplyViewModal] = useState(false);
+  const [replyRequestText, setReplyRequestText] = useState('');
+  const [replyRequestError, setReplyRequestError] = useState(false);
+  const [replyingConsultation, setReplyingConsultation] = useState(null);
   const [sectionData, setSectionData] = useState({
     section_name: '',
     grade_level: '',
@@ -146,6 +152,72 @@ export default function SectionScreen() {
         }
       ]
     );
+  };
+
+  const handleReplyRequest = async (consultation) => {
+    try {
+      setIsLoading(true);
+      // Kunin muna ang pinakabagong data sa database
+      const scheduleRef = doc(db, 'schedules', consultation.id);
+      const snapshot = await getDoc(scheduleRef);
+      const data = snapshot.exists() ? snapshot.data() : {};
+      const existingReply = (data.reply_request || '').trim();
+
+      setReplyingConsultation({ id: consultation.id, ...data });
+      setExistingReplyText(existingReply);
+      setReplyRequestText(''); // new message palagi dito
+      setReplyRequestError(false);
+
+      if (existingReply) {
+        // May existing reply: ipakita muna ang list/card ng replies
+        setShowReplyViewModal(true);
+      } else {
+        // Walang reply pa: diretsong mag-compose
+        setShowReplyModal(true);
+      }
+    } catch (error) {
+      console.error('Error loading reply data:', error);
+      Alert.alert('Error', 'Failed to load reply information');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveReplyRequest = async () => {
+    if (!replyRequestText.trim()) {
+      setReplyRequestError(true);
+      return;
+    }
+    if (!replyingConsultation) return;
+
+    try {
+      setIsLoading(true);
+      const scheduleRef = doc(db, 'schedules', replyingConsultation.id);
+
+      // Kung may existing reply, i-append ang bagong message bilang \"new message\"
+      const newMessage = replyRequestText.trim();
+      const combinedReply = existingReplyText
+        ? `${existingReplyText}\n\n--- New message ---\n${newMessage}`
+        : newMessage;
+
+      await updateDoc(scheduleRef, {
+        reply_request: combinedReply,
+        updated_at: serverTimestamp(),
+      });
+
+      setShowReplyModal(false);
+      setShowReplyViewModal(false);
+      setReplyRequestText('');
+      setExistingReplyText('');
+      setReplyingConsultation(null);
+      await fetchConsultations();
+      Alert.alert('Success', 'Reply sent.');
+    } catch (error) {
+      console.error('Error saving reply:', error);
+      Alert.alert('Error', 'Failed to save reply');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleMarkCompleted = async (consultation) => {
@@ -481,6 +553,10 @@ export default function SectionScreen() {
                             <TouchableOpacity style={styles.declineButton} onPress={() => handleDecline(c)} disabled={isLoading}>
                               <Ionicons name="close-circle" size={18} color="#F44336" />
                               <ThemedText style={styles.declineText}>Decline</ThemedText>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.replyButton} onPress={() => handleReplyRequest(c)} disabled={isLoading}>
+                              <Ionicons name="chatbox-ellipses-outline" size={18} color="#1976D2" />
+                              <ThemedText style={styles.replyText}>Reply Request</ThemedText>
                             </TouchableOpacity>
                             <TouchableOpacity style={styles.approveButton} onPress={() => handleApprove(c)} disabled={isLoading}>
                               <Ionicons name="checkmark-circle" size={18} color="#4CAF50" />
@@ -827,6 +903,137 @@ export default function SectionScreen() {
               >
                 <LinearGradient colors={['#F44336', '#D32F2F']} style={styles.saveButtonGradient}>
                   <ThemedText style={styles.saveButtonText}>Submit</ThemedText>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Reply List Modal (if may existing reply) */}
+      <Modal
+        visible={showReplyViewModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowReplyViewModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, { backgroundColor: backgroundColor }]}>
+            <View style={styles.modalHeader}>
+              <ThemedText style={[styles.modalTitle, { color: textColor }]}>Reply Request</ThemedText>
+              <TouchableOpacity onPress={() => setShowReplyViewModal(false)} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalContent}>
+              <ThemedText style={styles.inputLabel}>Existing Reply</ThemedText>
+
+              {existingReplyText ? (
+                <View style={styles.replyListContainer}>
+                  <View style={styles.replyItem}>
+                    <View style={styles.replyHeaderRow}>
+                      <View style={styles.replyAvatar}>
+                        <Ionicons name="person-circle-outline" size={28} color="#1976D2" />
+                      </View>
+                      <View style={styles.replyHeaderText}>
+                        <ThemedText style={styles.replyAuthorText}>
+                          {user?.firstname || 'You'}
+                        </ThemedText>
+                        <ThemedText style={styles.replyMetaText}>
+                          {replyingConsultation?.consultation_date || ''}
+                          {replyingConsultation?.consultation_time
+                            ? ` • ${replyingConsultation.consultation_time}`
+                            : ''}
+                        </ThemedText>
+                      </View>
+                    </View>
+
+                    <View style={styles.replyBodyContainer}>
+                      <ThemedText style={styles.replyBodyText}>
+                        {existingReplyText}
+                      </ThemedText>
+                    </View>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.emptyReplyContainer}>
+                  <Ionicons name="chatbox-ellipses-outline" size={32} color="#999" />
+                  <ThemedText style={styles.emptyReplyText}>No reply yet.</ThemedText>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setShowReplyViewModal(false)}
+              >
+                <ThemedText style={styles.cancelButtonText}>Close</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.saveButton}
+                onPress={() => {
+                  setShowReplyViewModal(false);
+                  setShowReplyModal(true);
+                }}
+              >
+                <LinearGradient colors={['#1976D2', '#1565C0']} style={styles.saveButtonGradient}>
+                  <ThemedText style={styles.saveButtonText}>Reply New Message</ThemedText>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Reply Request Modal */}
+      <Modal
+        visible={showReplyModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowReplyModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, { backgroundColor: backgroundColor }]}>
+            <View style={styles.modalHeader}>
+              <ThemedText style={[styles.modalTitle, { color: textColor }]}>Reply Request</ThemedText>
+              <TouchableOpacity onPress={() => setShowReplyModal(false)} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalContent}>
+              <ThemedText style={styles.inputLabel}>Your reply to the student</ThemedText>
+              <TextInput
+                style={[styles.textInput, { color: textColor, borderColor: replyRequestError ? '#F44336' : iconColor }]}
+                value={replyRequestText}
+                onChangeText={(text) => { setReplyRequestText(text); setReplyRequestError(false); }}
+                placeholder="Enter your reply message"
+                placeholderTextColor="#999"
+                multiline
+                numberOfLines={4}
+              />
+              {replyRequestError && (
+                <ThemedText style={{ color: '#F44336', marginTop: 6, fontSize: 12 }}>
+                  Reply is required
+                </ThemedText>
+              )}
+            </View>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setShowReplyModal(false)}
+              >
+                <ThemedText style={styles.cancelButtonText}>Cancel</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.saveButton}
+                onPress={handleSaveReplyRequest}
+              >
+                <LinearGradient colors={['#1976D2', '#1565C0']} style={styles.saveButtonGradient}>
+                  <ThemedText style={styles.saveButtonText}>Save Reply</ThemedText>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -1333,6 +1540,74 @@ const styles = StyleSheet.create({
   declineText: {
     marginLeft: 6,
     color: '#C62828',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  replyListContainer: {
+    marginTop: 10,
+  },
+  replyItem: {
+    borderRadius: 16,
+    padding: 14,
+    backgroundColor: '#E3F2FD',
+    borderWidth: 1,
+    borderColor: '#BBDEFB',
+  },
+  replyHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  replyAvatar: {
+    marginRight: 8,
+  },
+  replyHeaderText: {
+    flex: 1,
+  },
+  replyAuthorText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0D47A1',
+  },
+  replyMetaText: {
+    fontSize: 12,
+    color: '#555',
+    marginTop: 2,
+  },
+  replyBodyContainer: {
+    marginTop: 4,
+  },
+  replyBodyText: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
+  },
+  emptyReplyContainer: {
+    marginTop: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    backgroundColor: '#FAFAFA',
+  },
+  emptyReplyText: {
+    marginTop: 8,
+    fontSize: 13,
+    color: '#777',
+  },
+  replyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#E3F2FD',
+  },
+  replyText: {
+    marginLeft: 6,
+    color: '#1976D2',
     fontSize: 13,
     fontWeight: '600',
   },

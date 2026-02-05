@@ -151,6 +151,9 @@ export default function DashboardScreen() {
     if (!list || !list.length) return;
 
     for (const notif of list) {
+      // Skip already-read notifications — do not show alert for these
+      if (notif.isRead === true) continue;
+
       // Only for current user context
       if (user.userType === 'teacher' && notif.teacher_id && notif.teacher_id !== user.id) continue;
       if (user.userType === 'student' && notif.student_id && notif.student_id !== user.id) continue;
