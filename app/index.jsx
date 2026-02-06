@@ -5,15 +5,15 @@ import { StatusBar } from 'expo-status-bar';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Dimensions,
-  Image,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    Dimensions,
+    Image,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -364,7 +364,7 @@ export default function LoginScreen() {
           <View style={styles.sponsorContainer}>
             <View style={styles.sponsorLogos}>
               <Image
-                source={require('../assets/images/bayabas.png')}
+                source={require('../assets/images/logo.png')}
                 style={styles.sponsorLogo}
               />
             </View>
@@ -373,6 +373,20 @@ export default function LoginScreen() {
         
         </ScrollView>
       </View>
+
+      {/* Full-screen loading overlay with logo */}
+      {isLoading && (
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingCard}>
+            <Image
+              source={require('../assets/images/logo.png')}
+              style={styles.loadingLogo}
+            />
+            <ActivityIndicator color="#8B1538" size="large" style={{ marginTop: 16 }} />
+            <ThemedText style={styles.loadingText}>Please wait...</ThemedText>
+          </View>
+        </View>
+      )}
 
       {/* Theme Toggle Button */}
       <TouchableOpacity
@@ -530,6 +544,40 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     resizeMode: 'contain',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingCard: {
+    width: 220,
+    borderRadius: 24,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    backgroundColor: 'white',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 12,
+  },
+  loadingLogo: {
+    width: 120,
+    height: 120,
+    resizeMode: 'contain',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: '#444',
+    fontWeight: '600',
   },
   footerDecor: {
     height: 120,

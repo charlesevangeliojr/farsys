@@ -107,7 +107,7 @@ export default function AboutScreen() {
           {/* Logo and App Name */}
           <View style={styles.logoContainer}>
             <Image
-              source={require('../assets/images/bayabas.png')}
+              source={require('../assets/images/logo.png')}
               style={styles.appLogo}
             />
             <ThemedText style={[styles.appName, { color: textColor }]}>
