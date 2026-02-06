@@ -107,46 +107,52 @@ class NotificationService {
   }
 
   // Show notification for pending consultation
-  async notifyPendingConsultation(teacherName, purpose, date) {
+  async notifyPendingConsultation(teacherName, purpose, date, firestoreNotificationId = null) {
+    const data = {
+      type: 'consultation_pending',
+      teacherName,
+      purpose,
+      date,
+    };
+    if (firestoreNotificationId) data.firestoreNotificationId = firestoreNotificationId;
     return await this.scheduleNotification(
       '⏳ Pending Consultation',
       `Your consultation with ${teacherName} on ${date} is pending approval.`,
-      {
-        type: 'consultation_pending',
-        teacherName,
-        purpose,
-        date,
-      }
+      data
     );
   }
 
   // Show notification for approved consultation
-  async notifyApprovedConsultation(teacherName, purpose, date, time) {
+  async notifyApprovedConsultation(teacherName, purpose, date, time, firestoreNotificationId = null) {
+    const data = {
+      type: 'consultation_approved',
+      teacherName,
+      purpose,
+      date,
+      time,
+    };
+    if (firestoreNotificationId) data.firestoreNotificationId = firestoreNotificationId;
     return await this.scheduleNotification(
       '✅ Consultation Approved',
       `Your consultation with ${teacherName} on ${date} at ${time} has been approved!`,
-      {
-        type: 'consultation_approved',
-        teacherName,
-        purpose,
-        date,
-        time,
-      }
+      data
     );
   }
 
   // Show notification for new consultation request (for teachers)
-  async notifyNewConsultationRequest(studentName, purpose, date, time) {
+  async notifyNewConsultationRequest(studentName, purpose, date, time, firestoreNotificationId = null) {
+    const data = {
+      type: 'consultation_request',
+      studentName,
+      purpose,
+      date,
+      time,
+    };
+    if (firestoreNotificationId) data.firestoreNotificationId = firestoreNotificationId;
     return await this.scheduleNotification(
       '📅 New Consultation Request',
       `${studentName} requested a consultation: ${purpose} on ${date} at ${time}`,
-      {
-        type: 'consultation_request',
-        studentName,
-        purpose,
-        date,
-        time,
-      }
+      data
     );
   }
 
@@ -180,6 +186,25 @@ class NotificationService {
       await Notifications.dismissAllNotificationsAsync();
     } catch (error) {
       console.error('Error dismissing notifications:', error);
+    }
+  }
+
+  // Dismiss notification from lock screen when marked as read (isRead = true)
+  async dismissNotificationForFirestoreId(firestoreNotificationId) {
+    try {
+      const presented = await Notifications.getPresentedNotificationsAsync();
+      for (const notif of presented) {
+        const data = notif.request?.content?.data || {};
+        if (String(data.firestoreNotificationId) === String(firestoreNotificationId)) {
+          const identifier = notif.request?.identifier;
+          if (identifier) {
+            await Notifications.dismissNotificationAsync(identifier);
+          }
+          break;
+        }
+      }
+    } catch (error) {
+      console.error('Error dismissing notification:', error);
     }
   }
 }

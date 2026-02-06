@@ -161,24 +161,26 @@ export default function DashboardScreen() {
       const notificationKey = `notif_${notif.id}_${notif.type}`;
       if (notifiedNotifications.has(notificationKey)) continue;
 
-      // Teacher gets notified of new consultation requests
+      // Teacher gets notified of new consultation requests (only when isRead === false)
       if (notif.type === 'consultation_request' && user.userType === 'teacher') {
         await notificationService.notifyNewConsultationRequest(
           notif.studentName || (notif.message ? notif.message.split(' ')[0] : 'Student'),
           notif.message || 'New consultation request',
           notif.consultation_date || '',
-          notif.consultation_time || ''
+          notif.consultation_time || '',
+          notif.id
         );
         setNotifiedNotifications(prev => new Set([...prev, notificationKey]));
         continue;
       }
 
-      // Student gets notified for pending or approved
+      // Student gets notified for pending or approved (only when isRead === false)
       if (notif.type === 'consultation_pending' && user.userType === 'student') {
         await notificationService.notifyPendingConsultation(
           notif.teacher_name || 'Teacher',
           notif.message || 'Consultation pending',
-          notif.consultation_date || ''
+          notif.consultation_date || '',
+          notif.id
         );
         setNotifiedNotifications(prev => new Set([...prev, notificationKey]));
         continue;
@@ -189,7 +191,8 @@ export default function DashboardScreen() {
           notif.teacher_name || 'Teacher',
           notif.message || 'Consultation approved',
           notif.consultation_date || '',
-          notif.consultation_time || ''
+          notif.consultation_time || '',
+          notif.id
         );
         setNotifiedNotifications(prev => new Set([...prev, notificationKey]));
         continue;
@@ -500,6 +503,9 @@ export default function DashboardScreen() {
       await updateDoc(notificationRef, {
         isRead: true
       });
+
+      // Dismiss from lock screen / notification tray when marked as read
+      await notificationService.dismissNotificationForFirestoreId(notificationId);
       
       // Refresh notifications and count
       await fetchNotifications();
