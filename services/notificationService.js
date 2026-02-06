@@ -56,7 +56,7 @@ class NotificationService {
           sound: true,
           priority: Notifications.AndroidNotificationPriority.HIGH,
           vibrate: [0, 250, 250, 250],
-          badge: 1,
+          // Don't set badge here — use setBadgeCount() to avoid doubling/tripling
         },
         trigger: null, // Show immediately
       });

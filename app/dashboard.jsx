@@ -154,9 +154,10 @@ export default function DashboardScreen() {
       // Skip already-read notifications — do not show alert for these
       if (notif.isRead === true) continue;
 
-      // Only for current user context
-      if (user.userType === 'teacher' && notif.teacher_id && notif.teacher_id !== user.id) continue;
-      if (user.userType === 'student' && notif.student_id && notif.student_id !== user.id) continue;
+      // ONLY show if ikaw ang ni-notify — notification must be for the current user
+      const isForStudent = notif.student_id && notif.student_id === user.id && user.userType === 'student';
+      const isForTeacher = notif.teacher_id && notif.teacher_id === user.id && user.userType === 'teacher';
+      if (!isForStudent && !isForTeacher) continue;
 
       const notificationKey = `notif_${notif.id}_${notif.type}`;
       if (notifiedNotifications.has(notificationKey)) continue;
@@ -205,12 +206,17 @@ export default function DashboardScreen() {
     if (!user || !consultations.length) return;
 
     for (const consultation of consultations) {
+      // ONLY show if para sayo — consultation must be for the current user
+      const isForStudent = consultation.student_id === user.id && user.userType === 'student';
+      const isForTeacher = consultation.teacher_id === user.id && user.userType === 'teacher';
+      if (!isForStudent && !isForTeacher) continue;
+
       const notificationKey = `${consultation.id}_${consultation.status}`;
       
       // Skip if already notified for this status
       if (notifiedNotifications.has(notificationKey)) continue;
 
-      // Notify student about pending consultations
+      // Notify student about pending consultations only (approved comes from Firestore)
       if (consultation.status === 'pending' && user.userType === 'student') {
         await notificationService.notifyPendingConsultation(
           consultation.teacher_name,
@@ -219,28 +225,8 @@ export default function DashboardScreen() {
         );
         setNotifiedNotifications(prev => new Set([...prev, notificationKey]));
       }
-      
-      // Notify student about approved consultations
-      if (consultation.status === 'approved' && user.userType === 'student') {
-        await notificationService.notifyApprovedConsultation(
-          consultation.teacher_name,
-          consultation.purpose,
-          consultation.consultation_date,
-          consultation.consultation_time
-        );
-        setNotifiedNotifications(prev => new Set([...prev, notificationKey]));
-      }
-
-      // Notify teacher about new consultation requests
-      if (consultation.status === 'pending' && user.userType === 'teacher') {
-        await notificationService.notifyNewConsultationRequest(
-          consultation.student_name,
-          consultation.purpose,
-          consultation.consultation_date,
-          consultation.consultation_time
-        );
-        setNotifiedNotifications(prev => new Set([...prev, notificationKey]));
-      }
+      // Teacher new request & student approved: handled by checkNotificationAlerts (Firestore)
+      // to avoid duplicate notifications
     }
   };
 
