@@ -47,30 +47,21 @@ export default function SectionScreen() {
   const fetchSections = async () => {
     try {
       setIsLoading(true);
-      console.log('Starting to fetch sections...');
-      
-      // Try a simple query first without ordering
+
       const sectionsRef = collection(db, 'sections');
-      console.log('Collection reference created');
-      
       const querySnapshot = await getDocs(sectionsRef);
-      console.log('Query executed, got', querySnapshot.size, 'documents');
-      
+
       const sectionsList = [];
       querySnapshot.forEach((doc) => {
-        console.log('Processing document:', doc.id, doc.data());
         sectionsList.push({
           id: doc.id,
           ...doc.data()
         });
       });
-      
-      console.log('Sections list:', sectionsList);
+
       setSections(sectionsList);
     } catch (error) {
-      console.error('Detailed error fetching sections:', error);
-      console.error('Error code:', error.code);
-      console.error('Error message:', error.message);
+      console.error('Error fetching sections:', error);
       Alert.alert('Error', `Failed to load sections: ${error.message}`);
     } finally {
       setIsLoading(false);

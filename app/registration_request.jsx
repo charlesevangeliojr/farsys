@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { collection, doc, getDocs, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import React, { useState } from 'react';
 import { Alert, Dimensions, Image, Modal, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -36,28 +36,28 @@ export default function RegistrationRequestScreen() {
     toggleTheme();
   };
 
-  // Fetch students from Firestore based on filter
+  // Fetch students from Firestore based on filter (server-side query)
   const fetchStudents = async (status = 'pending') => {
     try {
       setIsLoading(true);
-      console.log('Starting to fetch students with status:', status);
-      
+
       const studentsRef = collection(db, 'students');
-      const querySnapshot = await getDocs(studentsRef);
-      
+      let q;
+      if (status === 'all') {
+        q = query(studentsRef);
+      } else {
+        q = query(studentsRef, where('status', '==', status));
+      }
+      const querySnapshot = await getDocs(q);
+
       const studentsList = [];
       querySnapshot.forEach((doc) => {
-        const studentData = doc.data();
-        // Filter by selected status
-        if (status === 'all' || studentData.status === status) {
-          studentsList.push({
-            id: doc.id,
-            ...studentData
-          });
-        }
+        studentsList.push({
+          id: doc.id,
+          ...doc.data()
+        });
       });
-      
-      console.log('Students list:', studentsList);
+
       setStudents(studentsList);
     } catch (error) {
       console.error('Error fetching students:', error);

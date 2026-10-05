@@ -187,11 +187,10 @@ export default function TeacherAccountScreen() {
   const fetchTeachers = async () => {
     try {
       setIsLoading(true);
-      console.log('Starting to fetch teachers...');
-      
+
       const teachersRef = collection(db, 'teachers');
       const querySnapshot = await getDocs(teachersRef);
-      
+
       const teachersList = [];
       querySnapshot.forEach((doc) => {
         teachersList.push({
@@ -199,10 +198,9 @@ export default function TeacherAccountScreen() {
           ...doc.data()
         });
       });
-      
-      console.log('Teachers list:', teachersList);
+
       setTeachers(teachersList);
-      
+
       // Fetch teacher-section assignments
       await fetchTeacherSections();
     } catch (error) {
@@ -218,27 +216,27 @@ export default function TeacherAccountScreen() {
     try {
       const teacherSectionsRef = collection(db, 'teacher_sections');
       const querySnapshot = await getDocs(teacherSectionsRef);
-      
+
       const sectionsRef = collection(db, 'sections');
       const sectionsSnapshot = await getDocs(sectionsRef);
-      
+
       // Create sections map for quick lookup
       const sectionsMap = {};
       sectionsSnapshot.forEach((doc) => {
         sectionsMap[doc.id] = doc.data();
       });
-      
+
       // Group sections by teacher_id
       const teacherSectionsMap = {};
       querySnapshot.forEach((doc) => {
         const data = doc.data();
         const teacherId = data.teacher_id;
         const sectionId = data.section_id;
-        
+
         if (!teacherSectionsMap[teacherId]) {
           teacherSectionsMap[teacherId] = [];
         }
-        
+
         // Add section info if it exists
         if (sectionsMap[sectionId]) {
           teacherSectionsMap[teacherId].push({
@@ -247,8 +245,7 @@ export default function TeacherAccountScreen() {
           });
         }
       });
-      
-      console.log('Teacher sections mapping:', teacherSectionsMap);
+
       setTeacherSections(teacherSectionsMap);
     } catch (error) {
       console.error('Error fetching teacher sections:', error);

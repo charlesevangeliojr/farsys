@@ -3,7 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { addDoc, collection, getDocs, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, getDocs, query, serverTimestamp, where } from 'firebase/firestore';
 import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage';
 import React, { useState } from 'react';
 import {
@@ -69,43 +69,38 @@ export default function RegisterScreen() {
   const tintColor = useThemeColor({}, 'tint');
   const iconColor = useThemeColor({}, 'icon');
 
-  // Fetch sections and active school year from Firestore
+  // Fetch sections and active school year from Firestore (server-side filters)
   React.useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch sections
+        // Fetch active sections only
         const sectionsRef = collection(db, 'sections');
-        const sectionsSnapshot = await getDocs(sectionsRef);
-        
+        const sectionsQuery = query(sectionsRef, where('status', '==', 'active'));
+        const sectionsSnapshot = await getDocs(sectionsQuery);
+
         const sectionsList = [];
         sectionsSnapshot.forEach((doc) => {
-          const sectionData = doc.data();
-          // Only include active sections
-          if (sectionData.status === 'active') {
-            sectionsList.push({
-              id: doc.id,
-              ...sectionData
-            });
-          }
+          sectionsList.push({
+            id: doc.id,
+            ...doc.data()
+          });
         });
-        
+
         setSections(sectionsList);
 
-        // Fetch active school year
+        // Fetch active school year only
         const schoolYearsRef = collection(db, 'school_years');
-        const schoolYearsSnapshot = await getDocs(schoolYearsRef);
-        
+        const schoolYearsQuery = query(schoolYearsRef, where('status', '==', 'active'));
+        const schoolYearsSnapshot = await getDocs(schoolYearsQuery);
+
         let activeYear = null;
         schoolYearsSnapshot.forEach((doc) => {
-          const schoolYearData = doc.data();
-          if (schoolYearData.status === 'active') {
-            activeYear = {
-              id: doc.id,
-              ...schoolYearData
-            };
-          }
+          activeYear = {
+            id: doc.id,
+            ...doc.data()
+          };
         });
-        
+
         if (activeYear) {
           setActiveSchoolYear(activeYear);
           // Auto-fill the school year ID

@@ -28,6 +28,32 @@ Built with Expo Router + Firebase (Firestore). Runs on Android, iOS, and web.
   not exist on web (`react-native-web`).
 - **Persistent session** (`contexts/AuthContext.jsx`): user cached in AsyncStorage.
 
+## Performance (server-light)
+
+Firestore reads are filtered server-side with `where(...)` queries instead of
+downloading whole collections and filtering in JS. This keeps Firestore costs,
+latency, and memory usage low as data grows.
+
+| Screen | Query |
+|---|---|
+| Login (`index.jsx`) | Admin by `email` (was: full `admin_accounts` scan) |
+| Dashboard | Schedules/notifications by user id; admin notifications `limit(100)` |
+| Make consultation | Schedules by `student_id`; teachers by `status=active` |
+| Consultation request | Schedules by `teacher_id` |
+| Registration request | Students by `status` |
+| Register | Sections/school years by `status=active` |
+| School year | Deactivate-others query filters by `status=active` |
+
+Other lightness measures:
+
+- Dashboard clock re-renders every **30s** (was every 1s).
+- Duplicate 60s polling interval in `make_consultation.jsx` removed (was firing
+  twice per minute and could double-write Firestore notifications).
+- Cloud Function `sendOtpEmail` **reuses one SMTP transport** across invocations
+  (was creating a new TLS connection per request) and applies a simple rate
+  limit (3 OTP emails per address per 10 minutes).
+- `nodemailer` removed from the client `package.json` (server-only package).
+
 ## Tech stack
 
 - Expo SDK 54, expo-router (file-based routing), React 19, React Native 0.81
@@ -117,7 +143,9 @@ storage.rules          Unused unless you enable Storage (requires Blaze)
    firebase deploy --only functions --project <PROJECT_ID>
    ```
    Without this, `POST …/sendOtpEmail` returns 404 and forgot-password email
-   delivery fails (OTP docs are still written to Firestore).
+   delivery fails (OTP docs are still written to Firestore). The function reuses
+   a single SMTP transport and rate-limits to 3 OTP emails per address per 10
+   minutes.
 
 ## Running
 

@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { addDoc, collection, doc, getDocs, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import React, { useState } from 'react';
 import { Alert, Dimensions, Modal, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -47,29 +47,21 @@ export default function SchoolYearScreen() {
   const fetchSchoolYears = async () => {
     try {
       setIsLoading(true);
-      console.log('Starting to fetch school years...');
-      
+
       const schoolYearsRef = collection(db, 'school_years');
-      console.log('Collection reference created');
-      
       const querySnapshot = await getDocs(schoolYearsRef);
-      console.log('Query executed, got', querySnapshot.size, 'documents');
-      
+
       const schoolYearsList = [];
       querySnapshot.forEach((doc) => {
-        console.log('Processing document:', doc.id, doc.data());
         schoolYearsList.push({
           id: doc.id,
           ...doc.data()
         });
       });
-      
-      console.log('School years list:', schoolYearsList);
+
       setSchoolYears(schoolYearsList);
     } catch (error) {
-      console.error('Detailed error fetching school years:', error);
-      console.error('Error code:', error.code);
-      console.error('Error message:', error.message);
+      console.error('Error fetching school years:', error);
       Alert.alert('Error', `Failed to load school years: ${error.message}`);
     } finally {
       setIsLoading(false);
@@ -115,17 +107,16 @@ export default function SchoolYearScreen() {
       // If setting this as active, deactivate all other school years first
       if (schoolYearData.status === 'active') {
         const schoolYearsRef = collection(db, 'school_years');
-        const querySnapshot = await getDocs(schoolYearsRef);
-        
+        const q = query(schoolYearsRef, where('status', '==', 'active'));
+        const querySnapshot = await getDocs(q);
+
         // Update all existing school years to inactive
         const updatePromises = [];
         querySnapshot.forEach((document) => {
-          if (document.data().status === 'active') {
-            const docRef = doc(db, 'school_years', document.id);
-            updatePromises.push(updateDoc(docRef, { status: 'inactive', updated_at: serverTimestamp() }));
-          }
+          const docRef = doc(db, 'school_years', document.id);
+          updatePromises.push(updateDoc(docRef, { status: 'inactive', updated_at: serverTimestamp() }));
         });
-        
+
         await Promise.all(updatePromises);
       }
       
@@ -208,18 +199,19 @@ export default function SchoolYearScreen() {
       // If setting this as active, deactivate all other school years first
       if (schoolYearData.status === 'active') {
         const schoolYearsRef = collection(db, 'school_years');
-        const querySnapshot = await getDocs(schoolYearsRef);
-        
+        const q = query(schoolYearsRef, where('status', '==', 'active'));
+        const querySnapshot = await getDocs(q);
+
         // Update all other school years (except current one) to inactive
         const updatePromises = [];
         querySnapshot.forEach((document) => {
           // Skip the current school year being edited
-          if (document.id !== editingSchoolYear.id && document.data().status === 'active') {
+          if (document.id !== editingSchoolYear.id) {
             const docRef = doc(db, 'school_years', document.id);
             updatePromises.push(updateDoc(docRef, { status: 'inactive', updated_at: serverTimestamp() }));
           }
         });
-        
+
         await Promise.all(updatePromises);
       }
       

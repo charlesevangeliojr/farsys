@@ -7,7 +7,9 @@ import {
   collection,
   doc,
   getDocs,
+  query,
   updateDoc,
+  where,
 } from "firebase/firestore";
 import React, { useState } from "react";
 import {
@@ -68,28 +70,26 @@ export default function MakeConsultationScreen() {
     toggleTheme();
   };
 
-  // Fetch schedules from Firestore
+  // Fetch schedules from Firestore (filtered by student — no full-collection download)
   const fetchConsultations = async () => {
     try {
       setIsLoading(true);
-      console.log("Starting to fetch schedules...");
+
+      if (!user) return;
 
       const schedulesRef = collection(db, "schedules");
-      const querySnapshot = await getDocs(schedulesRef);
+      const q = query(schedulesRef, where("student_id", "==", user.id));
+      const querySnapshot = await getDocs(q);
 
       const schedulesList = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        // Only show schedules for the current logged-in student (exclusive to this user)
-        if (user && data.student_id === user.id) {
-          schedulesList.push({
-            id: doc.id,
-            ...data,
-          });
-        }
+        schedulesList.push({
+          id: doc.id,
+          ...data,
+        });
       });
 
-      console.log("Schedules list:", schedulesList);
       setConsultations(schedulesList);
     } catch (error) {
       console.error("Error fetching schedules:", error);
@@ -99,27 +99,22 @@ export default function MakeConsultationScreen() {
     }
   };
 
-  // Fetch teachers from Firestore
+  // Fetch teachers from Firestore (only active teachers)
   const fetchTeachers = async () => {
     try {
-      console.log("Starting to fetch teachers...");
-
       const teachersRef = collection(db, "teachers");
-      const querySnapshot = await getDocs(teachersRef);
+      const q = query(teachersRef, where("status", "==", "active"));
+      const querySnapshot = await getDocs(q);
 
       const teachersList = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        if (data.status === "active") {
-          // Only get active teachers
-          teachersList.push({
-            id: doc.id,
-            ...data,
-          });
-        }
+        teachersList.push({
+          id: doc.id,
+          ...data,
+        });
       });
 
-      console.log("Teachers list:", teachersList);
       setTeachers(teachersList);
     } catch (error) {
       console.error("Error fetching teachers:", error);
@@ -185,23 +180,7 @@ export default function MakeConsultationScreen() {
     notificationService.requestPermissions();
   }, []);
 
-  // Check for notifications every 1 minute
-  React.useEffect(() => {
-    if (!user) return;
-
-    // Initial check
-    checkConsultationNotifications();
-
-    // Set interval for periodic checks (every 1 minute)
-    const interval = setInterval(() => {
-      checkConsultationNotifications();
-    }, 60000); // 60000ms = 1 minute
-
-    // Cleanup interval on unmount
-    return () => clearInterval(interval);
-  }, [consultations, user]);
-
-  // Check for notifications every 1 minute
+  // Check for notifications every 1 minute (single interval only)
   React.useEffect(() => {
     if (!user) return;
 

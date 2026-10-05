@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { addDoc, collection, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import React, { useState } from 'react';
 import { Alert, Dimensions, Image, Modal, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -57,31 +57,28 @@ export default function SectionScreen() {
     toggleTheme();
   };
 
-  // Fetch consultation requests for the logged-in teacher
+  // Fetch consultation requests for the logged-in teacher (filtered server-side)
   const fetchConsultations = async () => {
     try {
       setIsLoading(true);
-      console.log('Starting to fetch consultation requests for teacher...');
+
+      if (!user || user.userType !== 'teacher') return;
 
       const schedulesRef = collection(db, 'schedules');
-      const querySnapshot = await getDocs(schedulesRef);
+      const q = query(schedulesRef, where('teacher_id', '==', user.id));
+      const querySnapshot = await getDocs(q);
 
       const list = [];
       querySnapshot.forEach((docSnap) => {
         const data = docSnap.data();
-        if (user && user.userType === 'teacher' && data.teacher_id === user.id) {
-          if (statusFilter === 'all' || data.status === statusFilter) {
-            list.push({ id: docSnap.id, ...data });
-          }
+        if (statusFilter === 'all' || data.status === statusFilter) {
+          list.push({ id: docSnap.id, ...data });
         }
       });
 
-      console.log('Consultations list for teacher:', list.length);
       setConsultations(list);
     } catch (error) {
       console.error('Error fetching consultation requests:', error);
-      console.error('Error code:', error.code);
-      console.error('Error message:', error.message);
       Alert.alert('Error', `Failed to load consultation requests: ${error.message}`);
     } finally {
       setIsLoading(false);

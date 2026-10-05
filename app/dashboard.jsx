@@ -3,7 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { collection, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
+import { collection, doc, getDocs, limit, orderBy, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Dimensions, Image, Modal, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -39,11 +39,11 @@ export default function DashboardScreen() {
   const notificationListener = useRef();
   const responseListener = useRef();
 
-  // Update clock every second
+  // Update clock every 30 seconds (lightweight — avoids per-second re-renders)
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
-    }, 1000);
+    }, 30000);
 
     return () => clearInterval(timer);
   }, []);
@@ -54,15 +54,13 @@ export default function DashboardScreen() {
     notificationService.requestPermissions();
 
     // Listener for notifications received while app is in foreground
-    notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
-      console.log('Notification received:', notification);
+    notificationListener.current = Notifications.addNotificationReceivedListener(() => {
       // Refresh notification count
       fetchNotificationCount();
     });
 
     // Listener for when user taps on a notification
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-      console.log('Notification response:', response);
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(() => {
       // Open notifications modal when tapped
       handleOpenNotifications();
     });
@@ -85,14 +83,14 @@ export default function DashboardScreen() {
       const notificationsRef = collection(db, 'notifications');
       let q;
 
-      // Fetch ONLY this user's notifications without isRead filter to avoid composite index
+      // Fetch ONLY this user's notifications — filter server-side
       if (user.userType === 'student') {
         q = query(notificationsRef, where('student_id', '==', user.id));
       } else if (user.userType === 'teacher') {
         q = query(notificationsRef, where('teacher_id', '==', user.id));
       } else {
-        // Admin or others: fetch all
-        q = query(notificationsRef);
+        // Admin: filter unread server-side
+        q = query(notificationsRef, where('isRead', '==', false));
       }
 
       const snapshot = await getDocs(q);
@@ -114,31 +112,30 @@ export default function DashboardScreen() {
     }
   };
 
-  // Fetch consultations (same as make_consultation.jsx)
+  // Fetch consultations (filtered by user — no full-collection download)
   const fetchConsultations = async () => {
     try {
       if (!user) return;
 
       const schedulesRef = collection(db, 'schedules');
-      const querySnapshot = await getDocs(schedulesRef);
-      
+      let q;
+      if (user.userType === 'student') {
+        q = query(schedulesRef, where('student_id', '==', user.id));
+      } else if (user.userType === 'teacher') {
+        q = query(schedulesRef, where('teacher_id', '==', user.id));
+      } else {
+        return;
+      }
+      const querySnapshot = await getDocs(q);
+
       const schedulesList = [];
       querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        // Get consultations for current user (student or teacher)
-        if (user.userType === 'student' && data.student_id === user.id) {
-          schedulesList.push({
-            id: doc.id,
-            ...data
-          });
-        } else if (user.userType === 'teacher' && data.teacher_id === user.id) {
-          schedulesList.push({
-            id: doc.id,
-            ...data
-          });
-        }
+        schedulesList.push({
+          id: doc.id,
+          ...doc.data(),
+        });
       });
-      
+
       setConsultations(schedulesList);
     } catch (error) {
       console.error('Error fetching consultations:', error);
@@ -432,30 +429,19 @@ export default function DashboardScreen() {
 
       const notificationsRef = collection(db, 'notifications');
       let q;
-      
-      // Filter notifications based on user type - USER SPECIFIC!
+
+      // Filter notifications based on user type — server-side queries
       if (user.userType === 'student') {
-        // Students see ONLY their notifications (student_id match)
-        q = query(
-          notificationsRef, 
-          where('student_id', '==', user.id)
-        );
-        console.log(`Fetching notifications for student: ${user.id}`);
+        q = query(notificationsRef, where('student_id', '==', user.id));
       } else if (user.userType === 'teacher') {
-        // Teachers see ONLY their notifications (teacher_id match)
-        q = query(
-          notificationsRef, 
-          where('teacher_id', '==', user.id)
-        );
-        console.log(`Fetching notifications for teacher: ${user.id}`);
+        q = query(notificationsRef, where('teacher_id', '==', user.id));
       } else {
-        // Admin or other users see all notifications
-        q = query(notificationsRef);
-        console.log('Fetching all notifications (admin)');
+        // Admin: limit to most recent 100 instead of full collection
+        q = query(notificationsRef, orderBy('createdAt', 'desc'), limit(100));
       }
-      
+
       const querySnapshot = await getDocs(q);
-      
+
       let notificationsList = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
@@ -473,11 +459,10 @@ export default function DashboardScreen() {
       } else if (user.userType === 'teacher') {
         notificationsList = notificationsList.filter(n => n.type === 'consultation_request' || n.type === 'consultation_completed');
       }
-      
+
       // Sort by timestamp in descending order (newest first)
       notificationsList.sort((a, b) => b.timestamp - a.timestamp);
-      
-      console.log(`Loaded ${notificationsList.length} notifications for user ${user.id}`);
+
       setNotifications(notificationsList);
       // Immediately attempt to raise alerts with the freshly fetched list
       await checkNotificationAlerts(notificationsList);

@@ -76,35 +76,16 @@ export default function LoginScreen() {
     try {
       const emailLowerCase = email.trim().toLowerCase();
 
-      // Check admin_accounts first (for all email formats)
-      console.log('Checking admin_accounts with email:', emailLowerCase);
+      // Check admin_accounts first — query by email instead of downloading all admins
       const adminsRef = collection(db, 'admin_accounts');
-      
-      // Try to get all admin documents first to see what's available
-      const allAdminsSnapshot = await getDocs(adminsRef);
-      console.log('Total admin documents:', allAdminsSnapshot.docs.length);
-      
+      const adminsQuery = query(adminsRef, where('email', '==', emailLowerCase));
+      const allAdminsSnapshot = await getDocs(adminsQuery);
+
       if (!allAdminsSnapshot.empty) {
-        allAdminsSnapshot.docs.forEach((doc, index) => {
-          console.log(`Admin ${index + 1}:`, doc.data());
-        });
-        
-        // Find admin by email
-        const adminDoc = allAdminsSnapshot.docs.find(doc => {
-          const data = doc.data();
-          return data.email && data.email.toLowerCase().trim() === emailLowerCase;
-        });
-        
+        const adminDoc = allAdminsSnapshot.docs[0];
+
         if (adminDoc) {
           const adminData = adminDoc.data();
-          
-          console.log('Admin data found:', { 
-            email: adminData.email, 
-            hasPassword: !!adminData.password,
-            status: adminData.status,
-            firstname: adminData.firstname
-          });
-          console.log('Comparing passwords - DB:', adminData.password, 'Input:', password.trim());
 
           // Check if password matches (trim both sides to handle any extra spaces)
           if (adminData.password && adminData.password.trim() === password.trim()) {
