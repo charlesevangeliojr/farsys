@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // DEV ONLY: open access to match old schedule-app-54891 behavior.
+    // Tighten before production (require auth / per-collection rules).
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

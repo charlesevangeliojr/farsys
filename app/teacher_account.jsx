@@ -155,8 +155,12 @@ export default function TeacherAccountScreen() {
     }
   };
 
-  // Upload image to Firebase Storage
+  // Upload image to Firebase Storage (free-tier: skipped when storage is null)
   const uploadImage = async (uri) => {
+    if (!storage) {
+      console.log('Storage disabled (free tier) — using local image URI.');
+      return uri;
+    }
     try {
       // Fetch the image from the local URI
       const response = await fetch(uri);

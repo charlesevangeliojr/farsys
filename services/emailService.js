@@ -1,9 +1,12 @@
 import Constants from 'expo-constants';
 
 // Deployed default (update if different)
-const DEFAULT_URL = 'https://us-central1-schedule-app-54891.cloudfunctions.net/sendOtpEmail';
-// For local emulator use: http://localhost:5001/schedule-app-54891/us-central1/sendOtpEmail
-const SEND_OTP_URL = (Constants?.expoConfig?.extra?.sendOtpUrl) || DEFAULT_URL;
+const DEFAULT_URL = 'https://us-central1-farsys-150ab.cloudfunctions.net/sendOtpEmail';
+// For local emulator use: http://localhost:5001/farsys-150ab/us-central1/sendOtpEmail
+const SEND_OTP_URL =
+  process.env.EXPO_PUBLIC_SEND_OTP_URL ||
+  Constants?.expoConfig?.extra?.sendOtpUrl ||
+  DEFAULT_URL;
 
 export async function sendOtpEmail(to, otp, expiresMinutes = 10) {
   if (!SEND_OTP_URL) {

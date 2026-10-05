@@ -26,9 +26,9 @@ export const ThemeProvider = ({ children }) => {
     setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
   };
 
-  // Override the system color scheme
+  // Override the system color scheme (guarded: not available on web)
   useEffect(() => {
-    if (theme) {
+    if (theme && typeof Appearance.setColorScheme === 'function') {
       Appearance.setColorScheme(theme);
     }
   }, [theme]);

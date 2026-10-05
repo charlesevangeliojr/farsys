@@ -33,6 +33,7 @@ export default function DashboardScreen() {
   const [notificationFilter, setNotificationFilter] = useState('all'); // 'all', 'unread', 'read'
   const [notifiedNotifications, setNotifiedNotifications] = useState(new Set());
   const [consultations, setConsultations] = useState([]);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   
   // Notification listeners
   const notificationListener = useRef();
@@ -397,24 +398,27 @@ export default function DashboardScreen() {
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await logout();
-            } catch (e) {}
-            router.replace('/');
-          }
-        }
-      ]
-    );
+    // Alert.alert is a no-op on web (react-native-web), so use a Modal instead.
+    setShowLogoutModal(true);
   };
+
+  const confirmLogout = async () => {
+    try {
+      await logout();
+    } catch (e) {
+      console.error('Logout error:', e);
+    } finally {
+      setShowLogoutModal(false);
+      router.replace('/');
+    }
+  };
+
+  // Redirect unauthenticated users to login (covers post-logout + deep links)
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace('/');
+    }
+  }, [loading, user]);
 
   const handleOpenNotifications = async () => {
     setShowNotificationModal(true);
@@ -610,6 +614,39 @@ export default function DashboardScreen() {
           color="white"
         />
       </TouchableOpacity>
+
+      {/* Logout Confirmation Modal (works on web + native) */}
+      <Modal
+        visible={showLogoutModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowLogoutModal(false)}
+      >
+        <View style={styles.logoutModalOverlay}>
+          <View style={[styles.logoutModalContainer, { backgroundColor: backgroundColor }]}>
+            <ThemedText style={[styles.logoutModalTitle, { color: textColor }]}>
+              Logout
+            </ThemedText>
+            <ThemedText style={[styles.logoutModalMessage, { color: textColor }]}>
+              Are you sure you want to logout?
+            </ThemedText>
+            <View style={styles.logoutModalButtons}>
+              <TouchableOpacity
+                style={[styles.logoutModalButton, styles.logoutModalCancel]}
+                onPress={() => setShowLogoutModal(false)}
+              >
+                <ThemedText style={styles.logoutModalCancelText}>Cancel</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.logoutModalButton, styles.logoutModalConfirm]}
+                onPress={confirmLogout}
+              >
+                <ThemedText style={styles.logoutModalConfirmText}>Logout</ThemedText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Notifications Modal */}
       <Modal
@@ -931,6 +968,55 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+  },
+  logoutModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  logoutModalContainer: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+  },
+  logoutModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  logoutModalMessage: {
+    fontSize: 15,
+    textAlign: 'center',
+    marginBottom: 20,
+    opacity: 0.8,
+  },
+  logoutModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  logoutModalButton: {
+    flex: 1,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  logoutModalCancel: {
+    backgroundColor: '#E0E0E0',
+  },
+  logoutModalConfirm: {
+    backgroundColor: '#FF4444',
+  },
+  logoutModalCancelText: {
+    color: '#333',
+    fontWeight: '600',
+  },
+  logoutModalConfirmText: {
+    color: 'white',
+    fontWeight: '600',
   },
   notificationButton: {
     position: 'relative',
